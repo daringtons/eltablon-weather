@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>El Tablón Weather Gazette</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #121212;
+    color: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  h1 {
+    color: #6ec1ff;
+    text-align: center;
+  }
+  .forecast-box {
+    background: #1f1f1f;
+    padding: 20px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 500px;
+    margin-bottom: 20px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  }
+  .forecast-box p {
+    margin: 10px 0;
+    font-size: 1.1em;
+  }
+  img {
+    border: 2px solid #444;
+    border-radius: 8px;
+    max-width: 100%;
+    margin-top: 10px;
+  }
+  .loading {
+    color: #aaa;
+    font-style: italic;
+  }
+  button {
+    background: #1976d2;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    margin-bottom: 15px;
+  }
+  button:hover {
+    background: #2196f3;
+  }
+</style>
+</head>
+<body>
+  <h1>📰 EL TABLÓN WEATHER 📰</h1>
+
+  <button id="refresh-btn">🔄 Refresh</button>
+  
+  <div id="forecast" class="forecast-box">
+    <p class="loading">Loading forecast...</p>
+  </div>
+  
+  <div class="forecast-box">
+    <h2>🛰 Current Clouds</h2>
+    <img id="clouds-img" alt="Clouds over El Tablón" />
+  </div>
+
+<script>
+const LAT = 14.5;
+const LON = -87.5;
+const OPENWEATHER_KEY = "e17ca185f1733e936992f33af3a3d413";
+
+// Fetch forecast data from Open-Meteo
+async function fetchForecast(lat, lon) {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+              `&hourly=precipitation,precipitation_probability&forecast_days=2&timezone=auto`;
+  const resp = await fetch(url, { cache: "no-store" });
+  return await resp.json();
+}
+
+// Analyze forecast data
+function analyzeForecast(data) {
+  const hours = data.hourly.time.length;
+  let rainHours = 0, totalRain = 0;
+
+  for (let i = 0; i < hours; i++) {
+    const prob = data.hourly.precipitation_probability[i];
+    const rain = data.hourly.precipitation[i];
+    if (prob > 0) rainHours++;
+    totalRain += rain;
+  }
+
+  const chance = Math.round((rainHours / hours) * 100);
+  const impact = Math.round(totalRain * 2);
+  const idx = data.hourly.precipitation_probability.findIndex(p => p > 20);
+  const nextRainTime = idx >= 0 ? data.hourly.time[idx] : null;
+
+  return { chance, totalRain, impact, nextRainTime };
+}
+
+// Display forecast in HTML
+function renderForecast(report) {
+  const forecastEl = document.getElementById('forecast');
+  forecastEl.innerHTML = `
+    <p><strong>📍 Location:</strong> ${LAT}, ${LON}</p>
+    <p><strong>Chance of rain (next 48 h):</strong> ${report.chance}%</p>
+    ${
+      report.totalRain > 0
+      ? `<p><strong>Expected rainfall:</strong> ${report.totalRain.toFixed(1)} mm</p>
+         <p><strong>Estimated river flow impact:</strong> +${report.impact}%</p>`
+      : `<p>No significant rainfall expected.</p>`
+    }
+    <p><strong>Next likely rain:</strong> ${report.nextRainTime ?? "No rain expected"}</p>
+    <p style="font-size:0.9em; color:#888;"><em>Last updated: ${new Date().toLocaleTimeString()}</em></p>
+  `;
+}
+
+// Load and refresh cloud image with cache-busting timestamp
+function setCloudImage(lat, lon, apiKey) {
+  const zoom = 6;
+  const xTile = Math.floor((lon + 180) / 360 * Math.pow(2, zoom));
+  const yTile = Math.floor(
+    (1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom)
+  );
+
+  // Proper cache-busting by appending directly after &appid=
+  const url = `https://tile.openweathermap.org/map/clouds_new/${zoom}/${xTile}/${yTile}.png?appid=${apiKey}&_=${Date.now()}`;
+  
+  const imgEl = document.getElementById('clouds-img');
+  imgEl.src = url;
+}
+
+// One function to update both forecast and cloud image
+async function updateWeather() {
+  const forecastEl = document.getElementById('forecast');
+  forecastEl.innerHTML = `<p class="loading">Updating forecast...</p>`;
+
+  try {
+    const forecastData = await fetchForecast(LAT, LON);
+    const report = analyzeForecast(forecastData);
+
+    renderForecast(report);
+    setCloudImage(LAT, LON, OPENWEATHER_KEY);
+  } catch (err) {
+    forecastEl.innerHTML = `<p style="color:red">Error loading forecast: ${err}</p>`;
+  }
+}
+
+// Attach refresh button
+document.getElementById('refresh-btn').addEventListener("click", updateWeather);
+
+// Initial load
+updateWeather();
+</script>
+</body>
+</html>
