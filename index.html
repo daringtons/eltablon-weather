@@ -90,7 +90,7 @@ function analyzeForecast(data) {
   for (let i = 0; i < hours; i++) {
     const prob = data.hourly.precipitation_probability[i];
     const rain = data.hourly.precipitation[i];
-    if (prob > 0) rainHours++;
+    if (prob > 75) rainHours++; // Only count hours with >75% rain probability
     totalRain += rain;
   }
 
@@ -99,7 +99,7 @@ function analyzeForecast(data) {
   const idx = data.hourly.precipitation_probability.findIndex(p => p > 20);
   const nextRainTime = idx >= 0 ? data.hourly.time[idx] : null;
 
-  return { chance, totalRain, impact, nextRainTime };
+  return { chance, totalRain, impact, nextRainTime, rainDuration: rainHours };
 }
 
 // Display forecast in HTML
@@ -107,10 +107,11 @@ function renderForecast(report) {
   const forecastEl = document.getElementById('forecast');
   forecastEl.innerHTML = `
     <p><strong>📍 Location:</strong> ${LAT}, ${LON}</p>
-    <p><strong>Chance of rain (next 48 h):</strong> ${report.chance}%</p>
+    <p><strong>Chance of rain (next 48 h):</strong> ${report.chance}%</p>
     ${
       report.totalRain > 0
-      ? `<p><strong>Expected rainfall:</strong> ${report.totalRain.toFixed(1)} mm</p>
+      ? `<p><strong>Expected rainfall:</strong> ${report.totalRain.toFixed(1)} mm</p>
+         <p><strong>Estimated rain duration:</strong> ${report.rainDuration} hours</p>
          <p><strong>Estimated river flow impact:</strong> +${report.impact}%</p>`
       : `<p>No significant rainfall expected.</p>`
     }
@@ -127,7 +128,6 @@ function setCloudImage(lat, lon, apiKey) {
     (1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom)
   );
 
-  // Proper cache-busting by appending directly after &appid=
   const url = `https://tile.openweathermap.org/map/clouds_new/${zoom}/${xTile}/${yTile}.png?appid=${apiKey}&_=${Date.now()}`;
   
   const imgEl = document.getElementById('clouds-img');
