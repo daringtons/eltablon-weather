@@ -38,6 +38,7 @@
     max-width: 100%;
     height: auto;
     margin-top: 10px;
+    cursor: zoom-in;
   }
   .loading {
     color: #aaa;
@@ -55,6 +56,25 @@
   }
   button:hover {
     background: #2196f3;
+  }
+
+  /* Overlay modal styles */
+  .overlay {
+    display: none;
+    position: fixed;
+    z-index: 999;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.9);
+    justify-content: center;
+    align-items: center;
+  }
+  .overlay img {
+    max-width: 95%;
+    max-height: 95%;
+    border: none;
+    border-radius: 0;
+    cursor: zoom-out;
   }
 
   /* Responsive adjustments for mobile */
@@ -91,6 +111,11 @@
   <div class="forecast-box">
     <h2>🛰 Current Clouds</h2>
     <img id="clouds-img" alt="Clouds over El Tablón" />
+  </div>
+
+  <!-- Overlay for zoomed image -->
+  <div id="overlay" class="overlay">
+    <img id="overlay-img" alt="Zoomed cloud view" />
   </div>
 
 <script>
@@ -177,10 +202,24 @@ async function updateWeather() {
 // Attach refresh button
 document.getElementById('refresh-btn').addEventListener("click", updateWeather);
 
+// Overlay click-to-zoom feature
+const overlay = document.getElementById("overlay");
+const overlayImg = document.getElementById("overlay-img");
+const cloudsImg = document.getElementById("clouds-img");
+
+cloudsImg.addEventListener("click", () => {
+  overlayImg.src = cloudsImg.src;
+  overlay.style.display = "flex";
+});
+
+overlay.addEventListener("click", (e) => {
+  if (e.target !== overlayImg) {
+    overlay.style.display = "none";
+  }
+});
+
 // Initial load
 updateWeather();
 </script>
 </body>
 </html>
-
-
